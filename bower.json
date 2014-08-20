@@ -1,0 +1,22 @@
+{
+  "name": "camunda-bpm-angular-sdk",
+  "version": "0.0.1",
+  "authors": [
+    "Diego Rocha <diego@ampliato.com.br>"
+  ],
+  "keywords": [
+    "camunda",
+    "bpm",
+    "angular",
+    "sdk"
+  ],
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}

@@ -8,11 +8,11 @@ var ngTemplateCache = require('gulp-angular-templatecache');
 gulp.task('templatecache', function () {
 	return gulp.src('./lib/**/*.html')
 		.pipe(ngTemplateCache({module: "camBpmSdk"}))
-		.pipe(gulp.dest('./lib/templates'));
+		.pipe(gulp.dest('./templates'));
 });
 
 gulp.task('concat', ['templatecache'], function () {
-	return gulp.src('./lib/**/*.js')
+	return gulp.src(['./templates/**/*.js', './lib/**/*.js'])
 		.pipe(ngAnnotate())
 		// Swallow error, so that watch keeps working
 		.on('error', function(err){
