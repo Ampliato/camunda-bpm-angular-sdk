@@ -88,19 +88,13 @@ angular
 				}
 
 				$scope.submitForm = function (done) {
-					var data = {};
-					var resource;
-					if ($scope.processDefinition) {
-						data.id = $scope.processDefinition.id;
-						resource = "process-definition";
-					} else {
-						data.id = $scope.task.id;
-						resource = "task";
-					}
+					var data = {
+						id: $scope.resourceId
+					};
 
 					data.variables = $scope.formVariables;
 
-					camApi.resource(resource).submitForm(data,
+					camApi.resource($scope.resource).submitForm(data,
 					function (error, result) {
 						if (error) {
 							if (done) {
@@ -118,6 +112,8 @@ angular
 				};
 
 				function initializeForm () {
+					$scope.formScope = $scope.$new();
+
 					var parts = ($scope.formKey || "").split("embedded:");
 					var context = ($scope.formContextPath || "");
 					var client = camApi;
@@ -131,6 +127,8 @@ angular
 					} else {
 						formUrl = $scope.formKey;
 					}
+
+					loadVariables();
 
 					if (formUrl) {
 						camApi.http.load(formUrl, {
@@ -148,32 +146,41 @@ angular
 					}
 				}
 
-				function renderForm (formHtmlSource) {
-					container.html("<div>" + formHtmlSource + "</div>");
+				function loadVariables () {
+					$scope.formScope.variables = {};
 
-					$compile(angular.element(container.children()[0]).contents())($scope);
-				}
-
-				function loadTaskForm () {
-					camApi.resource("task").startForm(
-						{id: $scope.task.id},
-
-						function (error, result) {
+					camApi.resource($scope.resource).formVariables(
+						{
+							id : $scope.resourceId
+						},
+						function (error, variables) {
 							if (error) {
 								throw error;
 							}
 
-							if (result.key) {
-								$scope.formKey = result.key;
-								$scope.formContextPath = result.contextPath;
-
-								initializeForm();
+							for (var i in variables) {
+								var variable = variables[i];
+								$scope.formScope.variables[variable.id] = variable.value;
 							}
-					})
+						}
+					);
+				}
+
+				function renderForm (formHtmlSource) {
+					container.html("<div>" + formHtmlSource + "</div>");
+
+					$compile(angular.element(container.children()[0]).contents())($scope.formScope);
+				}
+
+				function loadTaskForm () {
+					$scope.resource = "task";
+					$scope.resourceId = $scope.task.id;
 				}
 
 				function loadProcessStartForm () {
-					camApi.resource("process-definition").startForm(
+					$scope.resource = "process-definition";
+					$scope.resourceId = $scope.processDefinition.id;
+					camApi.resource($scope.resource).startForm(
 						{id: $scope.processDefinition.id},
 
 						function (error, result) {
@@ -198,7 +205,7 @@ angular
 
 				$scope.$watch("task", function () {
 					if ($scope.taskId) {
-						loadProcessStartForm();
+						loadTaskForm();
 					}
 				});
 			}],
