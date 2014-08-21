@@ -76,17 +76,6 @@ angular
 				var container = angular.element($element.children()[0]);
 				$scope.formVariables = {};
 
-				this.setFormVariable = function (name, value, type) {
-					$scope.formVariables[name] = {
-						value: value,
-						type: type
-					};
-				}
-
-				this.getFormVariable = function (name) {
-					return $scope.formVariables[name];
-				}
-
 				$scope.submitForm = function (done) {
 					var data = {
 						id: $scope.resourceId
@@ -130,20 +119,23 @@ angular
 
 					loadVariables();
 
-					if (formUrl) {
-						camApi.http.load(formUrl, {
-							done: function (error, result) {
-								if (error) {
-									throw error;
-								}
-
-								renderForm(result);
-							}
-						});
-
-					} else {
-						throw "ErRor";
-					}
+					// if (formUrl) {
+					// 	camApi.http.load(formUrl, {
+					// 		done: function (error, formHtmlSource) {
+					// 			if (error) {
+					// 				throw error;
+					// 			}
+					//
+					// 			renderForm(formHtmlSource);
+					// 		}
+					// 	});
+					//
+					// } else {
+						$scope.formScope.genericVariables = [];
+						var formHtmlSource = "<cam-generic-form></cam-generic-form>";
+						renderForm(formHtmlSource);
+						// throw "ErRor";
+					// }
 				}
 
 				function loadVariables () {
@@ -151,15 +143,16 @@ angular
 
 					camApi.http.get($scope.resource + "/" + $scope.resourceId + "/form-variables",
 						{
-							done : function (error, variables) {
+							done : function (error, formVariables) {
 								if (error) {
 									throw error;
 								}
 
-								console.log(variables);
+								$scope.formScope.formVariables = formVariables;
 
-								for (var i in variables) {
-									var variable = variables[i];
+								// Copy values to 'variables' object so that ngModel is satisfied
+								for (var i in formVariables) {
+									var variable = formVariables[i];
 									$scope.formScope.variables[variable.name] = variable.value;
 								}
 							}
@@ -169,7 +162,9 @@ angular
 				function renderForm (formHtmlSource) {
 					container.html("<div>" + formHtmlSource + "</div>");
 
-					$compile(angular.element(container.children()[0]).contents())($scope.formScope);
+					$compile(
+						angular.element(container.children()[0]).contents()
+					)($scope.formScope);
 				}
 
 				$scope.$watch("processDefinition", function () {
@@ -246,15 +241,70 @@ angular
 
 			link: function (scope, element, attrs, controllers) {
 				var ngModelController = controllers[0];
-				var camFormController = controllers[1];
 
+				// Pass ngModel changes to 'formVariables' object.
 				scope.$watch(function () {
 					return ngModelController.$modelValue;
 				}, function () {
-					camFormController.setFormVariable(scope.variableName, ngModelController.$modelValue, scope.variableType);
+					if (scope.formVariables[scope.variableName]) {
+						scope.formVariables[scope.variableName].value =
+							ngModelController.$modelValue;
+					} else {
+						scope.formVariables[scope.variableName] =
+							{
+								value: ngModelController.$modelValue,
+								type: scope.variableType
+							};
+					}
 				});
 			}
 		};
+	})
+
+	.directive("camGenericForm",
+	function () {
+		return {
+			restrict: "AE",
+
+			scope: true,
+
+			require: ["^camForm"],
+
+			link: function (scope, element, attrs, camFormController) {
+				scope.genericVariables = [];
+
+				scope.$watch("formVariables", function (newValue, oldValue) {
+					scope.genericVariables = [];
+					for (var i in scope.formVariables) {
+						var formVariable = scope.formVariables[i];
+						scope.genericVariables.push(
+							{
+								name: i,
+								value: formVariable.value,
+								type: formVariable.type
+							});
+					}
+				});
+
+				scope.submitGenericForm = function () {
+					for (var i in scope.genericVariables) {
+						var genericVariable = scope.genericVariables[i];
+
+						if (scope.formVariables[genericVariable.name]) {
+							scope.formVariables[genericVariable.name].value = genericVariable.value;
+							scope.formVariables[genericVariable.name].type = genericVariable.type;
+						} else {
+							scope.formVariables[genericVariable.name] = genericVariable;
+						}
+					}
+
+					scope.submitForm();
+				}
+			},
+
+			templateUrl: "directives/camForm/camGenericForm.html"
+		};
 	});
 
-angular.module("camBpmSdk").run(["$templateCache", function($templateCache) {$templateCache.put("directives/camForm/camForm.html","<div ng-form=\"variablesForm\" class=\"cam-form-container\"></div>\n");}]);
+angular.module("camBpmSdk").run(["$templateCache", function($templateCache) {$templateCache.put("directives/camForm/camForm.html","<div ng-form=\"variablesForm\" class=\"cam-form-container\"></div>\n");
+$templateCache.put("directives/camForm/camGenericForm.html","<h3>Variables</h3>\n<div ng-repeat=\"variable in genericVariables\" class=\"row form-group\">\n	<div class=\"col-md-6\">\n		<input type=\"text\" ng-model=\"variable.name\" class=\"form-control\" placeholder=\"name\">\n	</div>\n	<div class=\"col-md-6\">\n		<input type=\"text\" ng-model=\"variable.value\" class=\"form-control\" placeholder=\"value\">\n	</div>\n</div>\n<button type=\"button\" class=\"btn btn-default\" ng-click=\"submitGenericForm()\">Submit Form</button>\n");}]);

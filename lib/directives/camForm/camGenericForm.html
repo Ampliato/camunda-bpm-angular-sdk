@@ -1,0 +1,10 @@
+<h3>Variables</h3>
+<div ng-repeat="variable in genericVariables" class="row form-group">
+	<div class="col-md-6">
+		<input type="text" ng-model="variable.name" class="form-control" placeholder="name">
+	</div>
+	<div class="col-md-6">
+		<input type="text" ng-model="variable.value" class="form-control" placeholder="value">
+	</div>
+</div>
+<button type="button" class="btn btn-default" ng-click="submitGenericForm()">Submit Form</button>
