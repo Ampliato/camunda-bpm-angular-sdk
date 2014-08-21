@@ -1,1 +1,1 @@
-angular.module("camBpmSdk").run(["$templateCache", function($templateCache) {$templateCache.put("directives/camForm/camForm.html","<div class=\"cam-form-container\"></div>\n<button ng-click=\"submitForm()\">Submeter</button>\n");}]);
+angular.module("camBpmSdk").run(["$templateCache", function($templateCache) {$templateCache.put("directives/camForm/camForm.html","<div ng-form=\"variablesForm\" class=\"cam-form-container\"></div>\n");}]);
