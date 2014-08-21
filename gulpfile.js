@@ -12,7 +12,7 @@ gulp.task('templatecache', function () {
 });
 
 gulp.task('concat', ['templatecache'], function () {
-	return gulp.src(['./templates/**/*.js', './lib/**/*.js'])
+	return gulp.src(['./lib/**/*.js', './templates/**/*.js'])
 		.pipe(ngAnnotate())
 		// Swallow error, so that watch keeps working
 		.on('error', function(err){
