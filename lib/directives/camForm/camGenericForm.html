@@ -2,7 +2,7 @@
 <div ng-repeat="variable in genericVariables" class="row form-group">
 	<div class="col-md-6">
 		<div class="input-group">
-			<input type="text" ng-model="variable.name" class="form-control" placeholder="Name">
+			<input type="text" ng-model="variable.name" class="form-control" placeholder="Variable Name">
 			<div class="input-group-addon">
 				<select
 					ng-model="variable.type"
@@ -15,4 +15,5 @@
 		<cam-generic-form-input html-source="{{getTypeInput(variable.type)}}"></cam-generic-form-input>
 	</div>
 </div>
+<button type="button" class="btn btn-default" ng-click="addVariable()">Add Variable</button>
 <button type="button" class="btn btn-default" ng-click="submitGenericForm()">Submit Form</button>
