@@ -99,6 +99,8 @@ angular
 
 				function initializeForm () {
 					$scope.formScope = $scope.$new();
+					$scope.formScope.formVariables = {};
+					$scope.formScope.variables = {};
 
 					var parts = ($scope.formKey || "").split("embedded:");
 					var context = ($scope.formContextPath || "");
@@ -135,8 +137,6 @@ angular
 				}
 
 				function loadVariables () {
-					$scope.formScope.variables = {};
-
 					camApi.http.get($scope.resource + "/" + $scope.resourceId + "/form-variables",
 						{
 							done : function (error, formVariables) {
@@ -224,11 +224,7 @@ angular
 		return {
 			restrict: "A",
 
-			scope: {
-				"variableName": "@camVariableName",
-				"variableType": "@camVariableType",
-				"model": "=ngModel"
-			},
+			scope: false,
 
 			require: ["ngModel", "^camForm"],
 
@@ -241,14 +237,14 @@ angular
 				scope.$watch(function () {
 					return ngModelController.$modelValue;
 				}, function () {
-					if (scope.formVariables[scope.variableName]) {
-						scope.formVariables[scope.variableName].value =
+					if (scope.formVariables[attrs.camVariableName]) {
+						scope.formVariables[attrs.camVariableName].value =
 							ngModelController.$modelValue;
 					} else {
-						scope.formVariables[scope.variableName] =
+						scope.formVariables[attrs.camVariableName] =
 							{
 								value: ngModelController.$modelValue,
-								type: scope.variableType
+								type: attrs.camVariableType
 							};
 					}
 				});
