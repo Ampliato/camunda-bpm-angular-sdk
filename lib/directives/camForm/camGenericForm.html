@@ -2,7 +2,10 @@
 <div ng-repeat="variable in genericVariables" class="row form-group">
 	<div class="col-md-6">
 		<div class="input-group">
-			<input type="text" ng-model="variable.name" class="form-control" placeholder="Variable Name">
+			<div class="input-group-addon">
+				<span style="cursor: pointer" class="glyphicon glyphicon-minus-sign" ng-click="removeVariable($index)"></span>
+			</div>
+			<input type="text" ng-model="variable.name" class="form-control" placeholder="Variable name">
 			<div class="input-group-addon">
 				<select
 					ng-model="variable.type"

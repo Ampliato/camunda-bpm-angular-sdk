@@ -319,6 +319,10 @@ angular
 					);
 				};
 
+				scope.removeVariable = function (index) {
+					scope.genericVariables.splice(index, 1);
+				};
+
 				scope.submitGenericForm = function () {
 					for (var i in scope.genericVariables) {
 						var genericVariable = scope.genericVariables[i];
@@ -362,4 +366,4 @@ angular
 	}]);
 
 angular.module("camBpmSdk").run(["$templateCache", function($templateCache) {$templateCache.put("directives/camForm/camForm.html","<div ng-form=\"variablesForm\" class=\"cam-form-container\"></div>\n");
-$templateCache.put("directives/camForm/camGenericForm.html","<h3>Variables</h3>\n<div ng-repeat=\"variable in genericVariables\" class=\"row form-group\">\n	<div class=\"col-md-6\">\n		<div class=\"input-group\">\n			<input type=\"text\" ng-model=\"variable.name\" class=\"form-control\" placeholder=\"Variable Name\">\n			<div class=\"input-group-addon\">\n				<select\n					ng-model=\"variable.type\"\n					ng-options=\"type as type for (type, input) in configuration.typeInputs\">\n				</select>\n			</div>\n		</div>\n	</div>\n	<div class=\"col-md-6\">\n		<cam-generic-form-input html-source=\"{{getTypeInput(variable.type)}}\"></cam-generic-form-input>\n	</div>\n</div>\n<button type=\"button\" class=\"btn btn-default\" ng-click=\"addVariable()\">Add Variable</button>\n<button type=\"button\" class=\"btn btn-default\" ng-click=\"submitGenericForm()\">Submit Form</button>\n");}]);
+$templateCache.put("directives/camForm/camGenericForm.html","<h3>Variables</h3>\n<div ng-repeat=\"variable in genericVariables\" class=\"row form-group\">\n	<div class=\"col-md-6\">\n		<div class=\"input-group\">\n			<div class=\"input-group-addon\">\n				<span style=\"cursor: pointer\" class=\"glyphicon glyphicon-minus-sign\" ng-click=\"removeVariable($index)\"></span>\n			</div>\n			<input type=\"text\" ng-model=\"variable.name\" class=\"form-control\" placeholder=\"Variable name\">\n			<div class=\"input-group-addon\">\n				<select\n					ng-model=\"variable.type\"\n					ng-options=\"type as type for (type, input) in configuration.typeInputs\">\n				</select>\n			</div>\n		</div>\n	</div>\n	<div class=\"col-md-6\">\n		<cam-generic-form-input html-source=\"{{getTypeInput(variable.type)}}\"></cam-generic-form-input>\n	</div>\n</div>\n<button type=\"button\" class=\"btn btn-default\" ng-click=\"addVariable()\">Add Variable</button>\n<button type=\"button\" class=\"btn btn-default\" ng-click=\"submitGenericForm()\">Submit Form</button>\n");}]);
