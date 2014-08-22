@@ -1,7 +1,15 @@
 <h3>Variables</h3>
 <div ng-repeat="variable in genericVariables" class="row form-group">
 	<div class="col-md-6">
-		<input type="text" ng-model="variable.name" class="form-control" placeholder="Name">
+		<div class="input-group">
+			<input type="text" ng-model="variable.name" class="form-control" placeholder="Name">
+			<div class="input-group-addon">
+				<select
+					ng-model="variable.type"
+					ng-options="type as type for (type, input) in configuration.typeInputs">
+				</select>
+			</div>
+		</div>
 	</div>
 	<div class="col-md-6">
 		<cam-generic-form-input html-source="{{getTypeInput(variable.type)}}"></cam-generic-form-input>
