@@ -1,4 +1,4 @@
-<h3>Variables</h3>
+<h3>{{configuration.properties['formTitle']}}}</h3>
 <div ng-repeat="variable in genericVariables" class="row form-group">
 	<div class="col-md-6">
 		<div class="input-group">
@@ -18,5 +18,15 @@
 		<cam-generic-form-input html-source="{{getTypeInput(variable.type)}}"></cam-generic-form-input>
 	</div>
 </div>
-<button type="button" class="btn btn-default" ng-click="addVariable()">Add Variable</button>
-<button type="button" class="btn btn-default" ng-click="submitGenericForm()">Submit Form</button>
+<button
+	type="button"
+	class="btn btn-default"
+	ng-click="addVariable()"
+	ng-bind="configuration.properties['addVariableLabel']">
+</button>
+<button
+	type="button"
+	class="btn btn-default"
+	ng-click="submitGenericForm()"
+	ng-bind="configuration.properties['submitFormLabel']">
+</button>
