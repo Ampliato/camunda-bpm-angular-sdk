@@ -123,6 +123,10 @@ angular
 				});
 
 				$scope.submitForm = function (done) {
+					if (!$scope.variablesForm.$valid) {
+						return;
+					}
+
 					var data = {
 						id: $scope.resourceId,
 						variables: serializeFormVariables($scope.formScope.formVariables)
