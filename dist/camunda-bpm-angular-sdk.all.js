@@ -74,10 +74,58 @@ angular
 				var self = this;
 				var container = angular.element($element.children()[0]);
 
+				$scope.$watch("processDefinition", function () {
+					if ($scope.processDefinition) {
+						$scope.resource = "process-definition";
+						$scope.resourceId = $scope.processDefinition.id;
+						camApi.resource($scope.resource).startForm(
+							{id: $scope.processDefinition.id},
+
+							function (error, result) {
+								if (error) {
+									throw error;
+								}
+
+								if (result.key) {
+									$scope.formKey = result.key;
+									$scope.formContextPath = result.contextPath;
+
+									initializeForm();
+								}
+						})
+					}
+				});
+
+				$scope.$watch("task", function () {
+					if ($scope.task) {
+						$scope.resource = "task";
+						$scope.resourceId = $scope.task.id;
+						$scope.formKey = $scope.task.formKey;
+
+						camApi.http.get("task/" + $scope.task.id + "/form",
+						{
+							done: function (error, result) {
+								if (error) {
+									throw error;
+								}
+
+								if (!$scope.task._embedded) {
+									$scope.task._embedded = {};
+								}
+
+								$scope.task._embedded.form = result;
+								$scope.formContextPath = result.contextPath;
+								initializeForm();
+							}
+						});
+
+					}
+				});
+
 				$scope.submitForm = function (done) {
 					var data = {
 						id: $scope.resourceId,
-						variables: $scope.formScope.formVariables
+						variables: serializeFormVariables($scope.formScope.formVariables)
 					};
 
 					camApi.resource($scope.resource).submitForm(data,
@@ -144,7 +192,8 @@ angular
 									throw error;
 								}
 
-								$scope.formScope.formVariables = formVariables;
+								$scope.formScope.formVariables =
+									deserializeFormVariables(formVariables);
 
 								// Copy values to 'variables' object so that ngModel is satisfied
 								for (var i in formVariables) {
@@ -163,53 +212,44 @@ angular
 					)($scope.formScope);
 				}
 
-				$scope.$watch("processDefinition", function () {
-					if ($scope.processDefinition) {
-						$scope.resource = "process-definition";
-						$scope.resourceId = $scope.processDefinition.id;
-						camApi.resource($scope.resource).startForm(
-							{id: $scope.processDefinition.id},
+				function serializeFormVariables (formVariables) {
+					var serializedFormVariables = angular.copy(formVariables);
+					for (var i in serializedFormVariables) {
+						var formVariable = serializedFormVariables[i];
 
-							function (error, result) {
-								if (error) {
-									throw error;
-								}
+						if (formVariable.value instanceof Object) {
+							var value = {
+								type: formVariable.type,
+								object: formVariable.value
+							};
 
-								if (result.key) {
-									$scope.formKey = result.key;
-									$scope.formContextPath = result.contextPath;
-
-									initializeForm();
-								}
-						})
+							formVariable.value = JSON.stringify(value);
+							formVariable.type = "String";
+						}
 					}
-				});
 
-				$scope.$watch("task", function () {
-					if ($scope.task) {
-						$scope.resource = "task";
-						$scope.resourceId = $scope.task.id;
-						$scope.formKey = $scope.task.formKey;
+					return serializedFormVariables;
+				}
 
-						camApi.http.get("task/" + $scope.task.id + "/form",
-						{
-							done: function (error, result) {
-								if (error) {
-									throw error;
-								}
+				function deserializeFormVariables (formVariables) {
+					var deserializedFormVariables = angular.copy(formVariables);
+					for (var i in deserializedFormVariables) {
+						var formVariable = deserializedFormVariables[i];
 
-								if (!$scope.task._embedded) {
-									$scope.task._embedded = {};
-								}
+						// Check if String is JSON
+						if (formVariable.type === "String" &&
+							formVariable.value &&
+							isJSON(formVariable.value)) {
+							var variable = JSON.parse(formVariable.value);
 
-								$scope.task._embedded.form = result;
-								$scope.formContextPath = result.contextPath;
-								initializeForm();
-							}
-						});
-
+							formVariable.value = variable.object;
+							formVariable.type = variable.type;
+						}
 					}
-				});
+
+					return deserializedFormVariables;
+				}
+
 			}],
 
 			link: function (scope, element, attrs) {
@@ -244,7 +284,7 @@ angular
 						scope.formVariables[attrs.camVariableName] =
 							{
 								value: ngModelController.$modelValue,
-								type: attrs.camVariableType
+								type: attrs.camVariableType || "String"
 							};
 					}
 				});
@@ -376,6 +416,17 @@ angular
 
 			}
 	}]);
+
+
+function isJSON (text) {
+	if (/^[\],:{}\s]*$/.test(text.replace(/\\["\\\/bfnrtu]/g, '@').
+	replace(/"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g, ']').
+	replace(/(?:^|:|,)(?:\s*\[)+/g, ''))) {
+		return true;
+	} else {
+		return false;
+	}
+}
 
 angular.module("camBpmSdk").run(["$templateCache", function($templateCache) {$templateCache.put("directives/camForm/camForm.html","<div ng-form=\"variablesForm\" class=\"cam-form-container\"></div>\n");
 $templateCache.put("directives/camForm/camGenericForm.html","<h3>{{configuration.properties[\'formTitle\']}}}</h3>\n<div ng-repeat=\"variable in genericVariables\" class=\"row form-group\">\n	<div class=\"col-md-6\">\n		<div class=\"input-group\">\n			<div class=\"input-group-addon\">\n				<span style=\"cursor: pointer\" class=\"glyphicon glyphicon-minus-sign\" ng-click=\"removeVariable($index)\"></span>\n			</div>\n			<input type=\"text\" ng-model=\"variable.name\" class=\"form-control\" placeholder=\"Variable name\">\n			<div class=\"input-group-addon\">\n				<select\n					ng-model=\"variable.type\"\n					ng-options=\"type as type for (type, input) in configuration.typeInputs\">\n				</select>\n			</div>\n		</div>\n	</div>\n	<div class=\"col-md-6\">\n		<cam-generic-form-input html-source=\"{{getTypeInput(variable.type)}}\"></cam-generic-form-input>\n	</div>\n</div>\n<button\n	type=\"button\"\n	class=\"btn btn-default\"\n	ng-click=\"addVariable()\"\n	ng-bind=\"configuration.properties[\'addVariableLabel\']\">\n</button>\n<button\n	type=\"button\"\n	class=\"btn btn-default\"\n	ng-click=\"submitGenericForm()\"\n	ng-bind=\"configuration.properties[\'submitFormLabel\']\">\n</button>\n");}]);
