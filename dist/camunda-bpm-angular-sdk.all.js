@@ -125,6 +125,8 @@ angular
 
 				$scope.submitForm = function (done) {
 					if (!$scope.variablesForm.$valid) {
+						$scope.$emit("camForm.invalidForm", $scope.variablesForm);
+
 						return;
 					}
 
@@ -133,15 +135,21 @@ angular
 						variables: serializeFormVariables($scope.formScope.formVariables)
 					};
 
+					$scope.$emit("camForm.submittingForm", data);
+
 					camApi.resource($scope.resource).submitForm(data,
 						function (error, result) {
 							if (error) {
+								$scope.$emit("camForm.formSubmitFailed", error);
+
 								if (done) {
 									done(error, result);
 								} else {
 									throw error;
 								}
 							}
+
+							$scope.$emit("camForm.formSubmitted", result);
 
 							if (done) {
 								done(error, result);
@@ -161,6 +169,7 @@ angular
 
 					if (parts.length > 1) {
 						formUrl = parts.pop();
+
 						// ensure a trailing slash
 						context = context + (context.slice(-1) !== '/' ? '/' : '');
 						formUrl = formUrl.replace(/app:(\/?)/, context);
@@ -170,21 +179,33 @@ angular
 
 					loadVariables(
 						function (error, variables) {
+							if (error) {
+								throw error;
+							}
+
 							if (formUrl) {
+								$scope.$emit("camForm.loadingForm");
 								camApi.http.load(formUrl, {
 									done: function (error, formHtmlSource) {
 										if (error) {
+											$scope.$emit("camForm.formLoadFailed", error);
+
 											throw error;
 										}
 
 										renderForm(formHtmlSource);
+
+										$scope.$emit("camForm.formLoaded", formHtmlSource);
 									}
 								});
 
 							} else {
 								$scope.formScope.genericVariables = [];
+
 								var formHtmlSource = "<cam-generic-form></cam-generic-form>";
 								renderForm(formHtmlSource);
+
+								$scope.$emit("camForm.genericFormInitialized");
 							}
 						}
 					);
@@ -192,16 +213,22 @@ angular
 				}
 
 				function loadVariables (done) {
+					$scope.$emit("camForm.loadingVariables");
+
 					camApi.http.get($scope.resource + "/" + $scope.resourceId + "/form-variables",
 						{
 							done : function (error, formVariables) {
 								if (error) {
+									$scope.$emit("camForm.variablesLoadFailed", error);
+
 									if (done) {
 										done(error, formVariables);
 									} else {
 										throw error;
 									}
 								}
+
+								$scope.$emit("camForm.variablesLoaded", formVariables);
 
 								$scope.formScope.formVariables =
 									deserializeFormVariables(formVariables);
@@ -260,10 +287,6 @@ angular
 				}
 
 			}],
-
-			link: function (scope, element, attrs) {
-
-			},
 
 			templateUrl: "directives/camForm/camForm.html"
 		};
