@@ -1,66 +1,118 @@
 'use strict';
 
-angular.module("camBpmSdk", [])
-	.value("HttpClient", CamSDK.Client)
-	.value("CamForm", CamSDK.Form)
-	.value("MockHttpClient", CamSDKMocks)
+angular.module("camBpmSdk", ["camApi"]);
+"use strict";
 
-	.factory("camApiHttpClient", ["MockHttpClient", "$rootScope",
-		function (MockHttpClient,   $rootScope) {
-			function AngularClient (config) {
-				var Client = (config.mock === true ? MockHttpClient : CamSDK.Client.HttpClient);
-				this._wrapped = new Client(config);
-			}
-
-			angular.forEach(['post', 'get', 'load', 'put', 'del'], function(name) {
-				AngularClient.prototype[name] = function(path, options) {
-					if (!options.done) {
-						return;
-					}
-
-					var original = options.done;
-
-					options.done = function(err, result) {
-						$rootScope.$apply(function() {
-							original(err, result);
-						});
-					};
-
-					this._wrapped[name](path, options);
-				};
-			});
-
-			angular.forEach(['on', 'once', 'off', 'trigger'], function(name) {
-				AngularClient.prototype[name] = function() {
-					this._wrapped[name].apply(this, arguments);
-				};
-			});
-
-			return AngularClient;
-		}]
-	)
-
+angular
+	.module("camApi", [])
 	.provider('camApi', function () {
 		var camApiConf = {
-			apiUri:     'engine-rest/engine'
+			apiUri: "engine-rest"
 		};
 
 		this.setApiConfiguration = function (configuration) {
 			camApiConf = configuration;
 		};
 
-		this.$get = ['camApiHttpClient', function(camAPIHttpClient) {
-			var conf = angular.copy(camApiConf);
-			conf.HttpClient = camAPIHttpClient;
+		this.$get = ["$http", function($http) {
 
-			return new CamSDK.Client(conf);
+			var configuration = angular.copy(camApiConf);
+
+			return new CamundaApi($http, configuration);
 		}];
 	});
 
+function CamundaApi ($http, configuration) {
+	this.$http = $http;
+	this.configuration = configuration;
+
+	if (!configuration.engine) {
+		configuration.engine = "default";
+	}
+
+	configuration.baseUrl = configuration.apiUri;
+
+	if(configuration.baseUrl.slice(-1) !== "/") {
+		configuration.baseUrl += "/";
+	}
+
+	configuration.baseUrl = configuration.baseUrl + "engine/" + configuration.engine;
+}
+
+angular.forEach(['post', 'get', 'put', 'delete'], function(name) {
+	CamundaApi.prototype[name] = function (path, configuration) {
+		if (typeof path != 'string') {
+			if (!configuration && path) {
+				configuration = path;
+			}
+
+			path = "/";
+		}
+
+		if (path.slice(0, 1) !== "/") {
+			path = "/" + path;
+		}
+
+		if (!configuration) {
+			configuration = {};
+		}
+
+		configuration.method = name.toUpperCase();
+		configuration.url = this.configuration.baseUrl + path;
+
+		if (!configuration.headers) {
+			configuration.headers = {};
+		}
+
+		if (!configuration.headers["Accept"]) {
+			configuration.headers["Accept"] = "application/hal+json, application/json";
+		}
+
+		return this.$http(configuration);
+	}
+});
+
+CamundaApi.prototype.resource = function (resourceName) {
+	return new CamundaApiResource(this, resourceName);
+};
+
+function CamundaApiResource (camundaApi, resourceName) {
+	this.camundaApi = camundaApi;
+	this.resourceName = resourceName;
+}
+
+angular.forEach(['post', 'get', 'put', 'delete'], function(name) {
+	CamundaApiResource.prototype[name] = function (path, configuration) {
+		if (typeof path != 'string') {
+			if (!configuration && path) {
+				configuration = path;
+			}
+
+			path = "/";
+		}
+
+		if (path.slice(0, 1) !== "/") {
+			path = "/" + path;
+		}
+
+		path = "/" + this.resourceName + path;
+
+		return this.camundaApi[name](path, configuration);
+	}
+});
+
+CamundaApiResource.prototype.list = function (params) {
+	return this.get("", {
+		params: params
+	});
+};
+angular.module("camAuth", [])
+	.provider("camAuth", function () {
+	});
 'use strict';
 
 angular
-	.module("camForm", ["camBpmSdk"])
+	.module("camForm", ["camApi"])
 	.directive("camForm", function () {
 		return {
 			restrict: 'EA',
@@ -70,7 +122,7 @@ angular
 				task: "="
 			},
 
-			controller: ["$scope", "$element", "$compile", "camApi", function ($scope, $element, $compile, camApi) {
+			controller: ["$scope", "$element", "$compile", "$http", "camApi", function ($scope, $element, $compile, $http, camApi) {
 				var self = this,
 					container = angular.element($element.children()[0]);
 
@@ -78,22 +130,18 @@ angular
 					if ($scope.processDefinition) {
 						$scope.resource = "process-definition";
 						$scope.resourceId = $scope.processDefinition.id;
-						camApi.resource($scope.resource).startForm(
-							{id: $scope.processDefinition.id},
 
-							function (error, result) {
-								if (error) {
-									throw error;
-								}
-
+						camApi
+							.resource("process-definition")
+							.get($scope.resourceId + "/startForm")
+							.success(function (result) {
 								if (result.key) {
 									$scope.formKey = result.key;
 									$scope.formContextPath = result.contextPath;
 
 									initializeForm();
 								}
-							}
-						);
+							});
 					}
 				});
 
@@ -103,27 +151,28 @@ angular
 						$scope.resourceId = $scope.task.id;
 						$scope.formKey = $scope.task.formKey;
 
-						camApi.http.get("task/" + $scope.task.id + "/form",
-							{
-								done: function (error, result) {
-									if (error) {
-										throw error;
-									}
-
+						camApi
+							.resource("task")
+							.get($scope.resourceId + "/form", { headers: { "Accept": "*"} })
+							.success(function (result) {
 									if (!$scope.task._embedded) {
 										$scope.task._embedded = {};
 									}
 
 									$scope.task._embedded.form = result;
 									$scope.formContextPath = result.contextPath;
-									initializeForm();
-								}
-							});
 
+									initializeForm();
+								});
 					}
 				});
 
-				$scope.submitForm = function (done) {
+				$scope.submitForm = function (businessKey, done) {
+					if (typeof(businessKey) == 'function') {
+						done = businessKey;
+						businessKey = null;
+					}
+
 					if (!$scope.variablesForm.$valid) {
 						$scope.$emit("camForm.invalidForm", $scope.variablesForm);
 
@@ -132,30 +181,38 @@ angular
 
 					var data = {
 						id: $scope.resourceId,
+						key: businessKey,
 						variables: serializeFormVariables($scope.formScope.formVariables)
 					};
 
 					$scope.$emit("camForm.submittingForm", data);
 
-					camApi.resource($scope.resource).submitForm(data,
-						function (error, result) {
-							if (error) {
-								$scope.$emit("camForm.formSubmitFailed", error);
-
-								if (done) {
-									done(error, result);
-								} else {
-									throw error;
-								}
-							}
-
-							$scope.$emit("camForm.formSubmitted", result);
+					camApi
+						.resource($scope.resource)
+						.post(
+							data.id + "/submit-form",
+							{
+								data: {
+										businessKey: data.key,
+										variables: data.variables
+									}
+							})
+						.success(function (data, status) {
+							$scope.$emit("camForm.formSubmitted", data);
 
 							if (done) {
-								done(error, result);
+								done(data, status);
+							}
+						})
+						.error(function (data, status) {
+							$scope.$emit("camForm.formSubmitFailed", status);
+
+							if (done) {
+								done(data, status);
+							} else {
+								throw error;
 							}
 						});
-
 				};
 
 				function initializeForm () {
@@ -178,27 +235,19 @@ angular
 					}
 
 					loadVariables(
-						function (error, variables) {
-							if (error) {
-								throw error;
-							}
-
+						function (variables, status) {
 							if (formUrl) {
 								$scope.$emit("camForm.loadingForm");
-								camApi.http.load(formUrl, {
-									done: function (error, formHtmlSource) {
-										if (error) {
-											$scope.$emit("camForm.formLoadFailed", error);
+								$http
+									.get(formUrl)
+									.success(function (data, status) {
+										renderForm(data);
 
-											throw error;
-										}
-
-										renderForm(formHtmlSource);
-
-										$scope.$emit("camForm.formLoaded", formHtmlSource);
-									}
-								});
-
+										$scope.$emit("camForm.formLoaded", data);
+									})
+									.error(function (data, status) {
+										$scope.$emit("camForm.formLoadFailed", data, status);
+									});
 							} else {
 								$scope.formScope.genericVariables = [];
 
@@ -215,27 +264,26 @@ angular
 				function loadVariables (done) {
 					$scope.$emit("camForm.loadingVariables");
 
-					camApi.http.get($scope.resource + "/" + $scope.resourceId + "/form-variables",
-						{
-							done : function (error, formVariables) {
-								if (error) {
-									$scope.$emit("camForm.variablesLoadFailed", error);
+					camApi
+						.resource($scope.resource)
+						.get($scope.resourceId + "/form-variables")
+						.success(function (formVariables, status) {
+							$scope.$emit("camForm.variablesLoaded", formVariables);
 
-									if (done) {
-										done(error, formVariables);
-									} else {
-										throw error;
-									}
-								}
+							$scope.formScope.formVariables =
+								deserializeFormVariables(formVariables);
 
-								$scope.$emit("camForm.variablesLoaded", formVariables);
+							if (done) {
+								done(formVariables, status);
+							}
+						})
+						.error(function (data, status) {
+							$scope.$emit("camForm.variablesLoadFailed", data, status);
 
-								$scope.formScope.formVariables =
-									deserializeFormVariables(formVariables);
-
-								if (done) {
-									done(error, formVariables);
-								}
+							if (done) {
+								done(data, status);
+							} else {
+								throw error;
 							}
 						});
 				}
@@ -300,24 +348,34 @@ angular
 
 			require: ["^camForm"],
 
-			controller: ["$scope", "$element", "$compile", function ($scope, $element, $compile) {
-				var variableName = $element.attr("cam-variable-name");
-				var variableType = $element.attr("cam-variable-type");
+			terminal: true,
 
-				if (!$scope.formVariables[variableName]) {
-					$scope.formVariables[variableName] = {
+			priority: 1000,
+
+			link: function (scope, element, attrs) {
+				var variableName = attrs.camVariableName;
+				var variableType = attrs.camVariableType;
+				var ngModel = attrs.ngModel;
+
+
+				if (!scope.formVariables[variableName]) {
+					scope.formVariables[variableName] = {
 						name: variableName,
 						type: variableType || "String"
 					};
 				}
 
 				var modelName = "formVariables['" + variableName + "'].value";
-				var ngModel = $element.attr("ng-model");
+
 				if (!ngModel || ngModel !== modelName) {
-					$element.attr("ng-model", modelName);
-					$compile($element)($scope);
+					element.attr("ng-model", modelName);
 				}
-			}]
+
+				element.removeAttr("cam-variable-name");
+				element.removeAttr("cam-variable-type");
+
+				$compile(element)(scope);
+			},
 
 		};
 	}])
@@ -334,7 +392,7 @@ angular
 
 		this.setProperty = function (key, value) {
 			configuration.properties[key] = value;
-		}
+		};
 
 		this.$get = [function () {
 			return angular.copy(configuration);
@@ -371,7 +429,7 @@ angular
 					}
 
 					return inputHtmlSource;
-				}
+				};
 
 			}],
 
@@ -420,7 +478,7 @@ angular
 					}
 
 					scope.submitForm();
-				}
+				};
 			},
 
 			templateUrl: "directives/camForm/camGenericForm.html"
@@ -444,7 +502,7 @@ angular
 					});
 				}
 
-			}
+			};
 	}]);
 
 function isJSON (text) {
